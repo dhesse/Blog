@@ -12,7 +12,7 @@ def extractFromIpynb(t):
                 return "".join(cell['source'])
 
 def extractFromFile(t):
-    first, last = int(t['from-line']), int(t['to-line'])
+    first, last = (int(i) for i in t['lines'].split('-'))
     with open(os.path.expanduser(t['file'])) as sourceFile:
         return "".join(
             (line for i,line in enumerate(sourceFile, 1)
