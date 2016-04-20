@@ -19,6 +19,7 @@ def extractFromFile(t):
              if first <= i <= last)).strip()
 
 TEMPLATE = '\n[code language="{0}"]\n{1}\n[/code]\n'
+CONFIG = {}
 
 def extractCode(t):
     code = {'nbcell': extractFromIpynb,
@@ -35,7 +36,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("markdown_file",
                         help="The input file, in markdown.")
+    parser.add_argument("-p", "--source_path",
+                        default="",
+                        help="The path for source code.")
     args = parser.parse_args()
+    CONFIG['source-path'] = args.source_path
     pandoc_output = subprocess.check_output(
         ["pandoc", "-t", "html", args.markdown_file])
     html = bs4.BeautifulSoup(pandoc_output, "html.parser")
