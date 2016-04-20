@@ -4,8 +4,15 @@ import bs4
 import json
 import os
 
+TEMPLATE = '\n[code language="{0}"]\n{1}\n[/code]\n'
+CONFIG = {'source_path': ''}
+
+def absPath(filename):
+    return os.path.expanduser(
+        os.path.join(CONFIG['source_path'], filename))
+
 def extractFromIpynb(t):
-    with open(os.path.expanduser(t['file'])) as jsonFile:
+    with open(absPath(t['file'])) as jsonFile:
         nb = json.loads(jsonFile.read())
         for i, cell in enumerate(nb['cells']):
             if i == int(t['cell']):
@@ -13,13 +20,10 @@ def extractFromIpynb(t):
 
 def extractFromFile(t):
     first, last = (int(i) for i in t['lines'].split('-'))
-    with open(os.path.expanduser(t['file'])) as sourceFile:
+    with open(absPath(t['file'])) as sourceFile:
         return "".join(
             (line for i,line in enumerate(sourceFile, 1)
              if first <= i <= last)).strip()
-
-TEMPLATE = '\n[code language="{0}"]\n{1}\n[/code]\n'
-CONFIG = {}
 
 def extractCode(t):
     code = {'nbcell': extractFromIpynb,
@@ -40,7 +44,7 @@ if __name__ == "__main__":
                         default="",
                         help="The path for source code.")
     args = parser.parse_args()
-    CONFIG['source-path'] = args.source_path
+    CONFIG['source_path'] = args.source_path
     pandoc_output = subprocess.check_output(
         ["pandoc", "-t", "html", args.markdown_file])
     html = bs4.BeautifulSoup(pandoc_output, "html.parser")
