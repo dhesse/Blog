@@ -11,6 +11,14 @@ def absPath(filename):
     return os.path.expanduser(
         os.path.join(CONFIG['source_path'], filename))
 
+def wordPressCode(fmt):
+    def wpFmt(tag):
+        return TEMPLATE.format(
+            tag['language'],
+            fmt(tag))
+    return wpFmt
+
+@wordPressCode
 def extractFromIpynb(t):
     with open(absPath(t['file'])) as jsonFile:
         nb = json.loads(jsonFile.read())
@@ -18,6 +26,7 @@ def extractFromIpynb(t):
             if i == int(t['cell']):
                 return "".join(cell['source'])
 
+@wordPressCode
 def extractFromFile(t):
     first, last = (int(i) for i in t['lines'].split('-'))
     with open(absPath(t['file'])) as sourceFile:
@@ -25,13 +34,18 @@ def extractFromFile(t):
             (line for i,line in enumerate(sourceFile, 1)
              if first <= i <= last)).strip()
 
+def insertGist(t):
+    return "\nhttps://gist.github.com/{0}/{1}\n".format(
+        t['user'], t['id'])
+
 def extractCode(t):
     code = {'nbcell': extractFromIpynb,
-            'source': extractFromFile}[t['kind']](t)
-    return TEMPLATE.format(t['language'], code)
+            'source': extractFromFile,
+            'gist': insertGist}[t['kind']](t)
+    return code
 
 def detectLanguage(tag):
-    if 'language' not in tag:
+    if (not tag.has_attr('language')) and tag.has_attr('file'):
         extension = os.path.splitext(tag['file'])[1]
         tag['language'] = {'.py': 'python',
                            '.ipynb': 'python'}[extension]
