@@ -48,6 +48,7 @@ def detectLanguage(tag):
     if (not tag.has_attr('language')) and tag.has_attr('file'):
         extension = os.path.splitext(tag['file'])[1]
         tag['language'] = {'.py': 'python',
+                           '.R': 'r',
                            '.ipynb': 'python'}[extension]
 
 if __name__ == "__main__":
