@@ -3,6 +3,7 @@ import subprocess
 import bs4
 import json
 import os
+from collections import defaultdict
 
 TEMPLATE = '\n[code language="{0}"]\n{1}\n[/code]\n'
 CONFIG = {'source_path': ''}
@@ -26,14 +27,20 @@ def extractFromIpynb(t):
             if i == int(t['cell']):
                 return "".join(cell['source'])
 
-@wordPressCode
-def extractFromFile(t):
-    first, last = (int(i) for i in t['lines'].split('-'))
+def insertFile(t):
+    if t.has_attr('lines'):
+        first, last = (int(i) for i in t['lines'].split('-'))
+    else:
+        first, last = 1, float('inf')
     with open(absPath(t['file'])) as sourceFile:
         return "".join(
             (line for i,line in enumerate(sourceFile, 1)
              if first <= i <= last)).strip()
 
+@wordPressCode
+def extractFromFile(t):
+    return insertFile(t)
+    
 def insertGist(t):
     return "\nhttps://gist.github.com/{0}/{1}\n".format(
         t['user'], t['id'])
@@ -41,15 +48,18 @@ def insertGist(t):
 def extractCode(t):
     code = {'nbcell': extractFromIpynb,
             'source': extractFromFile,
+            'paste': insertFile,
             'gist': insertGist}[t['kind']](t)
     return code
 
 def detectLanguage(tag):
     if (not tag.has_attr('language')) and tag.has_attr('file'):
         extension = os.path.splitext(tag['file'])[1]
-        tag['language'] = {'.py': 'python',
-                           '.R': 'r',
-                           '.ipynb': 'python'}[extension]
+        tag['language'] = defaultdict(
+            lambda : "",
+            {'.py': 'python',
+             '.R': 'r',
+             '.ipynb': 'python'})[extension]
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -63,9 +73,11 @@ if __name__ == "__main__":
     pandoc_output = subprocess.check_output(
         ["pandoc", "-t", "html", args.markdown_file])
     html = bs4.BeautifulSoup(pandoc_output, "html.parser")
-    for r in html.find_all('insert'):
+    formatargs = []
+    for i, r in enumerate(html.find_all('insert')):
         detectLanguage(r)
-        r.append(extractCode(r))
+        r.string = "{{{0}}}".format(i)
+        formatargs.append(extractCode(r))
         r.unwrap()
-    print html
+    print unicode(html).format(*formatargs)
     
