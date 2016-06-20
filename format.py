@@ -58,6 +58,7 @@ def detectLanguage(tag):
         tag['language'] = defaultdict(
             lambda : "",
             {'.py': 'python',
+             '.sh': 'bash',
              '.R': 'r',
              '.ipynb': 'python'})[extension]
 
