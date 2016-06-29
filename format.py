@@ -60,6 +60,9 @@ def detectLanguage(tag):
             {'.py': 'python',
              '.sh': 'bash',
              '.R': 'r',
+             '.html': 'html',
+             '.htm': 'html',
+             '.js': 'js',
              '.ipynb': 'python'})[extension]
 
 if __name__ == "__main__":
