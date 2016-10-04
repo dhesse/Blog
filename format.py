@@ -3,6 +3,7 @@ import subprocess
 import bs4
 import json
 import os
+import re
 from collections import defaultdict
 
 TEMPLATE = '\n[code language="{0}"]\n{1}\n[/code]\n'
@@ -63,8 +64,31 @@ def detectLanguage(tag):
              '.html': 'html',
              '.htm': 'html',
              '.js': 'js',
+             '.scala': 'scala',
              '.ipynb': 'python'})[extension]
 
+class ReSub(object):
+    def __init__(self, seek_pattern, match_list):
+        self.seek_pattern = seek_pattern
+        self.match_gen = (i for i in match_list)
+    def _insert(self, _):
+        return self.match_gen.next()
+    def __call__(self, text):
+        return re.sub(self.seek_pattern, self._insert, text)
+        
+class HandleLaTeX(object):
+    def __init__(self):
+        self.latex_groups = []
+        self.pattern = "insertLatex"
+    def _remember(self, match):
+        self.latex_groups.append(
+            re.sub("^\$", "$latex ", match.group(0)))
+        return self.pattern
+    def __call__(self, text):
+        return re.sub("(\$.*?\$)", self._remember, text)
+    def get_post(self):
+        return ReSub(self.pattern, self.latex_groups)
+        
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("markdown_file",
@@ -74,14 +98,25 @@ if __name__ == "__main__":
                         help="The path for source code.")
     args = parser.parse_args()
     CONFIG['source_path'] = args.source_path
-    pandoc_output = subprocess.check_output(
-        ["pandoc", "-t", "html", args.markdown_file])
-    html = bs4.BeautifulSoup(pandoc_output, "html.parser")
-    formatargs = []
-    for i, r in enumerate(html.find_all('insert')):
-        detectLanguage(r)
-        r.string = "{{{0}}}".format(i)
-        formatargs.append(extractCode(r))
-        r.unwrap()
-    print unicode(html).format(*formatargs)
+    with open(args.markdown_file) as input_file:
+        input_file_contents = input_file.read()
+        pre_filters = [HandleLaTeX()]
+        for f in pre_filters:
+            input_file_contents = f(input_file_contents)
+        post_filters = [f.get_post() for f in pre_filters]
+        pandoc_output = subprocess.Popen(
+            ["pandoc", "-t", "html"],
+            stdout=subprocess.PIPE,
+            stdin=subprocess.PIPE).communicate(input=input_file_contents)[0]
+        html = bs4.BeautifulSoup(pandoc_output, "html.parser")
+        formatargs = []
+        for i, r in enumerate(html.find_all('insert')):
+            detectLanguage(r)
+            r.string = "{{{0}}}".format(i)
+            formatargs.append(extractCode(r))
+            r.unwrap()
+        result = unicode(html).format(*formatargs)
+        for f in post_filters:
+            result = f(result)
+        print result
     
